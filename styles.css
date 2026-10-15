@@ -27,7 +27,7 @@ body {
     font-size: 16px;
     line-height: 1.6;
     color: var(--brand-dark);
-    background-color: var(--white);
+    background-color: var(--brand-primary);
 }
 
 /* Educational Notice */
@@ -1261,9 +1261,9 @@ body.nav-mode-super-agent .nav-separator.nav-sep-partner {
 }
 
 .agent-badge-noel-leeming {
-    color: var(--brand-primary);
-    background: rgba(19, 181, 234, 0.1);
-    border: 1px solid rgba(19, 181, 234, 0.3);
+    color: var(--white);
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .agent-badge-partner {
@@ -1345,14 +1345,14 @@ body.nav-mode-partner p[data-show-mode="partner"] {
 .hero-title {
     font-size: 2.5rem;
     font-weight: 700;
-    color: var(--brand-dark);
+    color: var(--white);
     margin-bottom: 1rem;
     line-height: 1.2;
 }
 
 .hero-description {
     font-size: 1.125rem;
-    color: var(--gray-600);
+    color: rgba(255, 255, 255, 0.92);
     max-width: 640px;
     margin: 0 auto;
 }
