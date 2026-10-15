@@ -1050,7 +1050,7 @@ body .embeddedServiceSidebar.layout-float {
 
 /* Dashboard Page Styles */
 .dashboard-page {
-    background-color: var(--gray-50);
+    background-color: var(--brand-primary);
     min-height: 100vh;
 }
 
