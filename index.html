@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TWG Customer AI Agent</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dashboard-page">
+    <!-- Simple client-side password gate. This is NOT real security — anyone
+         can view-source and read the password below. It's just a casual
+         speed bump for a public demo link, matching the shared password
+         used on the previous Heroku deployment. -->
+    <style>
+        body:not(.pw-unlocked) > *:not(#pw-gate) { display: none !important; }
+        #pw-gate {
+            position: fixed; inset: 0; z-index: 99999;
+            display: flex; align-items: center; justify-content: center;
+            background: #243C94;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        body.pw-unlocked #pw-gate { display: none !important; }
+        #pw-gate .pw-card {
+            background: #fff; border-radius: 12px; padding: 2.5rem;
+            width: 100%; max-width: 360px; box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+            text-align: center;
+        }
+        #pw-gate .pw-badge {
+            display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
+            background: #E20512; color: #fff; font-weight: 700; font-size: 13px;
+            border-radius: 4px; letter-spacing: .3px; margin-bottom: 1.25rem;
+        }
+        #pw-gate h1 { font-size: 1.1rem; color: #243C94; margin: 0 0 1.25rem; font-weight: 600; }
+        #pw-gate input {
+            width: 100%; padding: 0.65rem 0.85rem; font-size: 1rem;
+            border: 1px solid #D1D5DB; border-radius: 8px; margin-bottom: 0.75rem;
+            box-sizing: border-box;
+        }
+        #pw-gate button {
+            width: 100%; padding: 0.65rem; font-size: 1rem; font-weight: 600;
+            background: #E20512; color: #fff; border: none; border-radius: 8px; cursor: pointer;
+        }
+        #pw-gate button:hover { background: #A61F25; }
+        #pw-gate .pw-error { color: #E20512; font-size: 0.85rem; margin-top: 0.6rem; display: none; }
+    </style>
+    <div id="pw-gate">
+        <div class="pw-card">
+            <div class="pw-badge">NOEL LEEMING</div>
+            <h1>Enter the demo password to continue</h1>
+            <form id="pw-form">
+                <input type="password" id="pw-input" placeholder="Password" autocomplete="off" autofocus>
+                <button type="submit">Enter</button>
+                <div class="pw-error" id="pw-error">Incorrect password.</div>
+            </form>
+        </div>
+    </div>
+    <script>
+        (function () {
+            // Casual gate only — the point is to keep a public demo link off
+            // search engines / accidental clicks, not to protect anything
+            // sensitive. Session-scoped so it doesn't persist forever.
+            var PASSWORD = 'TestPass123';
+            var KEY = 'nl_demo_unlocked';
+            function unlock() {
+                document.body.classList.add('pw-unlocked');
+                try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
+            }
+            try {
+                if (sessionStorage.getItem(KEY) === '1') unlock();
+            } catch (_) {}
+            document.getElementById('pw-form').addEventListener('submit', function (e) {
+                e.preventDefault();
+                var val = document.getElementById('pw-input').value;
+                if (val === PASSWORD) {
+                    unlock();
+                } else {
+                    document.getElementById('pw-error').style.display = 'block';
+                }
+            });
+        })();
+    </script>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <div class="brand-logo">
+                    <span style="display:inline-flex;align-items:center;height:28px;padding:0 10px;background:#E20512;color:#fff;font-weight:700;font-size:13px;border-radius:4px;letter-spacing:.3px;">NOEL LEEMING</span>
+                </div>
+            </div>
+            <div class="nav-mode-switcher">
+                <button class="nav-mode-btn" data-mode="noel-leeming">Noel Leeming</button>
+                <button class="nav-mode-btn" data-mode="super-agent">TWG</button>
+                <button class="nav-mode-btn" data-mode="partner">TWS</button>
+            </div>
+            <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <div class="educational-banner">
+        <div class="educational-banner-content">
+            <span class="educational-banner-icon">ℹ️</span>
+            <span class="educational-banner-text">Powered by Salesforce Embedded Service (Chat/Messaging). Frontend components and user experience flows have been architected strictly for educational demonstration.</span>
+        </div>
+    </div>
+
+    <main class="main-content">
+        <div class="content-wrapper">
+            <section class="hero-section">
+                <div class="hero-content">
+                    <div class="agent-badge agent-badge-noel-leeming" data-show-mode="noel-leeming">Service Agent</div>
+                    <h1 class="hero-title">Technology &amp; Appliances, sorted</h1>
+                    <p class="hero-description">
+                        New Zealand's leading technology and appliances retailer since 1973. Shop computers, mobile, audio, gaming and appliances — with our Price Promise Guarantee, you're never undersold.
+                    </p>
+                </div>
+            </section>
+
+            <section class="features-section">
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background-color: #FDE8E9;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E20512" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                <line x1="8" y1="21" x2="16" y2="21"></line>
+                                <line x1="12" y1="17" x2="12" y2="21"></line>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">Computers &amp; Office Tech</h3>
+                        <p class="feature-description">
+                            Laptops, desktops, printers and accessories for work, school and everything in between.
+                        </p>
+                        <a href="#" class="feature-link">Shop computers →</a>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background-color: #FFF4E6;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E20512" stroke-width="2">
+                                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                                <line x1="4" y1="10" x2="20" y2="10"></line>
+                                <line x1="8" y1="6" x2="8" y2="6"></line>
+                                <line x1="8" y1="14" x2="8" y2="14"></line>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">Appliances</h3>
+                        <p class="feature-description">
+                            Fridges, washing machines, ovens and small appliances from all the big brands you trust.
+                        </p>
+                        <a href="#" class="feature-link">Shop appliances →</a>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background-color: #E6F7FF;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#243C94" stroke-width="2">
+                                <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
+                                <line x1="11" y1="18" x2="13" y2="18"></line>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">Mobile &amp; Smart Devices</h3>
+                        <p class="feature-description">
+                            The latest phones, tablets and wearables — including iPhone and the top Android brands.
+                        </p>
+                        <a href="#" class="feature-link">Shop mobile →</a>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background-color: #F0E6FF;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#243C94" stroke-width="2">
+                                <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">Audio &amp; Home Entertainment</h3>
+                        <p class="feature-description">
+                            Headphones, speakers, soundbars and TVs to upgrade your home entertainment setup.
+                        </p>
+                        <a href="#" class="feature-link">Shop audio →</a>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background-color: #E6F9F0;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E20512" stroke-width="2">
+                                <rect x="2" y="6" width="20" height="12" rx="6" ry="6"></rect>
+                                <circle cx="8" cy="12" r="1"></circle>
+                                <circle cx="16" cy="10" r="1"></circle>
+                                <circle cx="16" cy="14" r="1"></circle>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">Gaming</h3>
+                        <p class="feature-description">
+                            Consoles, games and accessories for PlayStation, Xbox and Nintendo.
+                        </p>
+                        <a href="#" class="feature-link">Shop gaming →</a>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background-color: #E6FFFA;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#243C94" stroke-width="2">
+                                <path d="M3 10l9-7 9 7"></path>
+                                <path d="M5 9v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9"></path>
+                            </svg>
+                        </div>
+                        <h3 class="feature-title">Smarthome</h3>
+                        <p class="feature-description">
+                            Smart lighting, security, cameras and voice assistants to make your home smarter.
+                        </p>
+                        <a href="#" class="feature-link">Shop smarthome →</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="#" class="footer-link">Help Center</a>
+                <a href="#" class="footer-link">Privacy Policy</a>
+                <a href="#" class="footer-link">Terms of Service</a>
+                <a href="#" class="footer-link">Contact Us</a>
+            </div>
+            <p class="footer-copyright">© 2026 Noel Leeming. This is an internal Salesforce demo page — not the real Noel Leeming website.</p>
+        </div>
+    </footer>
+
+    <script src="nav.js"></script>
+    <script src="response-timer.js"></script>
+    <script src="session-ids.js"></script>
+    <script src="agent-configs.js"></script>
+    <script>
+        // Conversation ID row lives inside #response-timer (response-timer.js
+        // appends it). Attach listeners and start the SDK bridge keyed to the
+        // active mode's deployment (see agent-configs.js).
+        if (window.AgentSessionIds) {
+            window.AgentSessionIds.attach();
+            window.AgentSessionIds.mountEmbeddedSdkBridge(window.AgentConfigs.deploymentFor(window.__navMode));
+        }
+    </script>
+
+    <!-- Salesforce Embedded Messaging Integration — native launcher button,
+         user-initiated open. No hideChatButton, no auto-launch: Salesforce's
+         own SDK renders its own branded button + chat window exactly as
+         configured on the TWG_AG_NL_Web deployment in Setup. -->
+    <script type='text/javascript'>
+        const activeConfig = window.AgentConfigs.active();
+        console.log('[Agent] mode:', window.__navMode, '| deployment:', activeConfig.deploymentName);
+
+        function initEmbeddedMessaging() {
+            try {
+                if (typeof embeddedservice_bootstrap !== 'undefined') {
+                    embeddedservice_bootstrap.settings.language = 'en_US';
+
+                    console.log('[Agent] Calling init with:', {
+                        orgId: activeConfig.orgId,
+                        deploymentName: activeConfig.deploymentName,
+                        siteUrl: activeConfig.siteUrl,
+                        scrt2URL: activeConfig.scrt2URL
+                    });
+                    embeddedservice_bootstrap.init(
+                        activeConfig.orgId,
+                        activeConfig.deploymentName,
+                        activeConfig.siteUrl,
+                        {
+                            scrt2URL: activeConfig.scrt2URL
+                        }
+                    );
+                } else {
+                    console.error("[Agent] initEmbeddedMessaging called but embeddedservice_bootstrap is undefined.");
+                }
+            } catch (err) {
+                console.error('[Agent] Error loading Embedded Messaging: ', err);
+            }
+        };
+
+        console.log('[Agent] Loading bootstrap from:', activeConfig.bootstrapJs);
+        var s = document.createElement('script');
+        s.src = activeConfig.bootstrapJs;
+        s.onload = function() {
+            console.log('[Agent] Bootstrap loaded successfully');
+            initEmbeddedMessaging();
+        };
+        s.onerror = function(e) {
+            console.error('[Agent] Bootstrap FAILED to load:', activeConfig.bootstrapJs, e);
+        };
+        document.body.appendChild(s);
+    </script>
+</body>
+</html>
