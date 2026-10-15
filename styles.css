@@ -27,7 +27,7 @@ body {
     font-size: 16px;
     line-height: 1.6;
     color: var(--brand-dark);
-    background-color: var(--brand-primary);
+    background-color: var(--white);
 }
 
 /* Educational Notice */
@@ -1050,13 +1050,13 @@ body .embeddedServiceSidebar.layout-float {
 
 /* Dashboard Page Styles */
 .dashboard-page {
-    background-color: var(--brand-primary);
+    background-color: var(--gray-50);
     min-height: 100vh;
 }
 
 .navbar {
-    background-color: var(--white);
-    border-bottom: 1px solid var(--gray-200);
+    background-color: var(--brand-primary);
+    border-bottom: 1px solid var(--brand-primary-alt);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -1261,9 +1261,9 @@ body.nav-mode-super-agent .nav-separator.nav-sep-partner {
 }
 
 .agent-badge-noel-leeming {
-    color: var(--white);
-    background: rgba(255, 255, 255, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: var(--brand-primary);
+    background: rgba(226, 5, 18, 0.08);
+    border: 1px solid rgba(226, 5, 18, 0.3);
 }
 
 .agent-badge-partner {
@@ -1345,14 +1345,14 @@ body.nav-mode-partner p[data-show-mode="partner"] {
 .hero-title {
     font-size: 2.5rem;
     font-weight: 700;
-    color: var(--white);
+    color: var(--brand-dark);
     margin-bottom: 1rem;
     line-height: 1.2;
 }
 
 .hero-description {
     font-size: 1.125rem;
-    color: rgba(255, 255, 255, 0.92);
+    color: var(--gray-600);
     max-width: 640px;
     margin: 0 auto;
 }
@@ -1838,7 +1838,7 @@ body.nav-mode-partner p[data-show-mode="partner"] {
     display: block;
     width: 24px;
     height: 3px;
-    background-color: var(--brand-dark);
+    background-color: var(--white);
     border-radius: 2px;
     transition: all 0.3s ease;
 }

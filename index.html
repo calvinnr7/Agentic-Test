@@ -252,6 +252,7 @@
             try {
                 if (typeof embeddedservice_bootstrap !== 'undefined') {
                     embeddedservice_bootstrap.settings.language = 'en_US';
+                    embeddedservice_bootstrap.settings.enableUserInputForConversationWithBot = false;
 
                     console.log('[Agent] Calling init with:', {
                         orgId: activeConfig.orgId,
