@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Noel Leeming — Nola (pinnable Agentforce chat)</title>
+<style>
+  :root {
+    --nl-red: #e2000f;
+    --nl-red-dark: #b8000c;
+    --nl-yellow: #ffd400;
+    --nl-amber: #ffbf00;
+    --nl-navy: #1f3a93;
+    --ink: #1d1d1f;
+    --muted: #5f6368;
+    --bg: #f5f7fb;
+    --radius: 16px;
+    --shadow: 0 24px 60px rgba(20, 24, 40, .28), 0 4px 14px rgba(20, 24, 40, .12);
+    --dock-w: 420px; /* set from JS */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    transition: padding .25s ease;
+  }
+  [hidden] { display: none !important; }
+
+  /* ---------- Demo site ---------- */
+  .site-header {
+    position: sticky; top: 0; z-index: 10;
+    height: 88px; padding: 0 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--nl-red); color: #fff;
+  }
+  .brand { font-weight: 800; letter-spacing: .06em; font-size: 18px; }
+  .brand-switch { display: flex; gap: 2px; padding: 4px; border-radius: 8px; background: #fff; }
+  .brand-switch button {
+    border: 0; border-radius: 6px; padding: 8px 18px; background: transparent; color: #444;
+    font: inherit; font-size: 14px; font-weight: 700; letter-spacing: .06em; cursor: pointer;
+  }
+  .brand-switch button.active { color: var(--nl-red); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+  .notice {
+    display: flex; gap: 14px; align-items: center; padding: 18px 56px;
+    background: var(--nl-amber); border-bottom: 2px solid #f0a800; font-size: 16px;
+  }
+  .notice .i {
+    flex: none; width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center;
+    background: #4a90d9; color: #fff; font-weight: 700; font-family: Georgia, serif;
+  }
+  main { padding: 40px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 32px; max-width: 1400px; }
+  .card { padding: 44px; border-radius: var(--radius); background: #fff; box-shadow: 0 2px 10px rgba(20, 24, 40, .06); }
+  .card .ico { width: 86px; height: 86px; margin-bottom: 30px; border-radius: 14px; display: grid; place-items: center; }
+  .card h3 { margin: 0 0 18px; color: var(--nl-navy); font-size: 26px; }
+  .card p { margin: 0 0 22px; color: #444; font-size: 19px; line-height: 1.7; }
+  .card a { color: var(--nl-red); font-weight: 700; font-size: 20px; text-decoration: none; }
+
+  /* ---------- Page reflow / interaction state ---------- */
+  body.nola-pinned-right { padding-right: var(--dock-w); }
+  body.nola-pinned-left  { padding-left:  var(--dock-w); }
+  body.nola-interacting, body.nola-interacting * { user-select: none !important; }
+  body.nola-dragging, body.nola-dragging * { cursor: grabbing !important; }
+  /* Without this the ESW iframe swallows pointer events while dragging over it */
+  body.nola-interacting iframe.embeddedMessagingFrame { pointer-events: none !important; }
+
+  /* ---------- Launcher (when closed) ---------- */
+  #nola-launcher {
+    position: fixed; right: 28px; bottom: 28px; z-index: 2147483000;
+    display: flex; align-items: center; gap: 10px; padding: 10px 22px 10px 10px;
+    border: 3px solid var(--nl-yellow); border-radius: 999px;
+    background: var(--nl-red); color: #fff; font: inherit; font-weight: 700;
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .nola-badge {
+    flex: none; width: 42px; height: 42px; border-radius: 50%;
+    border: 3px solid var(--nl-yellow); display: grid; place-items: center;
+    font-weight: 800; font-size: 16px;
+  }
+
+  /* ---------- Window shell ---------- */
+  #nola-shell {
+    position: fixed; z-index: 2147483001;
+    display: flex; flex-direction: column; overflow: hidden;
+    min-width: 320px; border-radius: var(--radius);
+    background: #fff; box-shadow: var(--shadow);
+  }
+  #nola-shell.animate { transition: left .22s ease, top .22s ease, width .22s ease, height .22s ease; }
+  #nola-shell:is([data-mode="dock-right"], [data-mode="dock-left"], [data-mode="max"]) { border-radius: 0; }
+  #nola-shell[data-mode="min"] { border-radius: 999px 18px 18px 999px; }
+
+  /* Control bar: the ESD draws its own Nola header, so this only carries window controls.
+     Badge + title show only when minimised, so the collapsed bar isn't blank. */
+  .nola-bar {
+    flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+    padding: 4px 8px; background: var(--nl-red); color: #fff;
+    cursor: grab; touch-action: none;
+  }
+  #nola-shell[data-mode="max"] .nola-bar { cursor: default; }
+  .nola-bar .nola-badge, .nola-title { display: none; }
+  #nola-shell[data-mode="min"] .nola-bar { justify-content: flex-start; padding: 12px 12px 12px 18px; }
+  #nola-shell[data-mode="min"] .nola-bar .nola-badge { display: grid; }
+  #nola-shell[data-mode="min"] .nola-title { display: block; }
+  .nola-title { flex: 1; min-width: 0; line-height: 1.2; }
+  .nola-title b, .nola-title span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nola-title b { font-size: 20px; }
+  .nola-title span { font-size: 14px; opacity: .95; }
+
+  .nola-ctrls { display: flex; gap: 2px; }
+  .nola-ctrls button {
+    width: 34px; height: 34px; border: 0; border-radius: 8px; display: grid; place-items: center;
+    background: transparent; color: #fff; cursor: pointer;
+  }
+  .nola-ctrls button:hover { background: rgba(255,255,255,.18); }
+  .nola-ctrls button[aria-pressed="true"] { background: rgba(255,255,255,.28); }
+  .nola-ctrls svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Body: the ESW iframe is pinned over this box by JS */
+  .nola-body { flex: 1; min-height: 0; display: grid; place-items: center; }
+  .nola-status { padding: 24px; text-align: center; color: var(--muted); font-size: 15px; }
+  .nola-status.error { color: var(--nl-red-dark); }
+  #nola-shell[data-mode="min"] :is(.nola-body, .rz) { display: none; }
+
+  /* Resize handles. Docked: inner edge only. Maximised: none. */
+  .rz { position: absolute; z-index: 3; touch-action: none; }
+  .rz-n, .rz-s { left: 10px; right: 10px; height: 10px; cursor: ns-resize; }
+  .rz-e, .rz-w { top: 10px; bottom: 10px; width: 10px; cursor: ew-resize; }
+  .rz-n { top: -4px; } .rz-s { bottom: -4px; } .rz-e { right: -4px; } .rz-w { left: -4px; }
+  .rz-ne, .rz-nw, .rz-se, .rz-sw { width: 16px; height: 16px; }
+  .rz-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+  .rz-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+  .rz-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+  .rz-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+  #nola-shell[data-mode="dock-right"] .rz:not(.rz-w),
+  #nola-shell[data-mode="dock-left"] .rz:not(.rz-e),
+  #nola-shell[data-mode="max"] .rz { display: none; }
+  #nola-shell[data-mode="dock-right"] .rz-w,
+  #nola-shell[data-mode="dock-left"] .rz-e { top: 0; bottom: 0; }
+
+  /* Snap preview while dragging near a side */
+  #nola-snap {
+    position: fixed; z-index: 2147483000; pointer-events: none; opacity: 0;
+    border: 2px dashed var(--nl-red); border-radius: 12px; background: rgba(226, 0, 15, .12);
+    transition: all .15s ease;
+  }
+  #nola-snap.show { opacity: 1; }
+
+  /* ---------- Response metrics (TTFT / total latency) ---------- */
+  #nola-metrics {
+    position: fixed; top: 150px; left: 20px; z-index: 2147483000;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+    transition: left .25s ease;
+  }
+  body.nola-pinned-left #nola-metrics { left: calc(var(--dock-w) + 20px); }
+  .metrics-toggle {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+    border: 1px solid #e5e7eb; border-radius: 999px; background: #fff; color: var(--ink);
+    font: inherit; font-size: 13px; font-weight: 600; box-shadow: 0 4px 14px rgba(0,0,0,.08); cursor: pointer;
+  }
+  .metrics-toggle:hover { border-color: var(--nl-red); color: var(--nl-red); }
+  .metrics-toggle .chev { font-size: 11px; color: #9ca3af; transition: transform .2s ease; }
+  .metrics-toggle[aria-expanded="true"] .chev { transform: rotate(90deg); color: var(--nl-red); }
+
+  .metrics-card {
+    --tone: #e5e7eb; --tone-ink: var(--ink); --tone-bg: #fff;
+    width: 260px; padding: 18px 20px; border: 2px solid var(--tone); border-radius: var(--radius);
+    background: var(--tone-bg); box-shadow: 0 10px 40px rgba(0,0,0,.15);
+  }
+  .metrics-card[data-level="ok"]   { --tone: #10b981; --tone-ink: #059669; --tone-bg: linear-gradient(135deg, #ecfdf5, #d1fae5); }
+  .metrics-card[data-level="warn"] { --tone: #f59e0b; --tone-ink: #d97706; --tone-bg: linear-gradient(135deg, #fffbeb, #fef3c7); }
+  .metrics-card[data-level="slow"] { --tone: #ef4444; --tone-ink: #dc2626; --tone-bg: linear-gradient(135deg, #fef2f2, #fee2e2); }
+  .metrics-card h4, .metric > span, .metric-id > span {
+    margin: 0; color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+  }
+  .metrics-card h4 { margin-bottom: 12px; }
+  .metric { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .metric b { color: #6b7280; font-size: 15px; }
+  .metric output { color: var(--tone-ink); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .metric-id { padding-top: 10px; border-top: 1px solid var(--tone); }
+  .metric-id div { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .metric-id code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  .metric-id code.empty { color: #9ca3af; font-style: italic; }
+  .metric-id button {
+    flex: none; padding: 3px 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff;
+    font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .metric-id button:disabled { opacity: .45; cursor: default; }
+
+  /* ESW's own launcher stays hidden — the shell replaces it (ESW re-shows it after its own minimise) */
+  .embeddedMessagingConversationButtonWrapper, .embeddedMessagingConversationButton { display: none !important; }
+
+  @media (max-width: 640px) {
+    body.nola-pinned-right, body.nola-pinned-left { padding: 0; }
+    .site-header, .notice { padding-left: 20px; padding-right: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand">NOEL LEEMING</div>
+  <div class="brand-switch">
+    <button class="active">NOEL LEEMING</button><button>TWG</button><button>TWS</button>
+  </div>
+</header>
+<div class="notice">
+  <span class="i">i</span>
+  <span>Powered by Salesforce Embedded Service (Chat/Messaging). Frontend components and user experience flows have been architected strictly for educational / demo purposes.</span>
+</div>
+
+<main>
+  <div class="grid">
+    <article class="card"><div class="ico" style="background:#eaf3ff">💻</div><h3>Computers &amp; Tablets</h3><p>Laptops, desktops, monitors and everything in between.</p><a href="#">Shop computers →</a></article>
+    <article class="card"><div class="ico" style="background:#fff2e6">🧺</div><h3>Appliances</h3><p>Kitchen, laundry and home appliances from all the big brands you trust.</p><a href="#">Shop appliances →</a></article>
+    <article class="card"><div class="ico" style="background:#eaf6ff">📱</div><h3>Mobile &amp; Smart Devices</h3><p>The latest phones, tablets and wearables — including iPhone and the top Android brands.</p><a href="#">Shop mobile →</a></article>
+    <article class="card"><div class="ico" style="background:#f3ecff">🎧</div><h3>Audio &amp; Home Entertainment</h3><p>Headphones, speakers, soundbars and TVs to upgrade your home entertainment setup.</p><a href="#">Shop audio →</a></article>
+    <article class="card"><div class="ico" style="background:#e9f8f1">🎮</div><h3>Gaming</h3><p>Consoles, games and accessories for PlayStation, Xbox and Nintendo.</p><a href="#">Shop gaming →</a></article>
+    <article class="card"><div class="ico" style="background:#e8fbfb">🏠</div><h3>Smarthome</h3><p>Smart lighting, security, cameras and voice assistants to make your home smarter.</p><a href="#">Shop smarthome →</a></article>
+  </div>
+</main>
+
+<button id="nola-launcher" type="button" aria-label="Open Nola chat" hidden>
+  <span class="nola-badge">nl</span> Chat with Nola
+</button>
+
+<aside id="nola-metrics" aria-label="Response metrics">
+  <button type="button" class="metrics-toggle" id="metrics-toggle" aria-expanded="false" aria-controls="metrics-card">⏱ Metrics <span class="chev">▸</span></button>
+  <div class="metrics-card" id="metrics-card" hidden>
+    <h4>Response metrics</h4>
+    <div class="metric"><span>First token</span><b><output id="metric-ttft">0.0</output> s</b></div>
+    <div class="metric"><span>Complete</span><b><output id="metric-total">0.0</output> s</b></div>
+    <div class="metric-id">
+      <span>Session ID</span>
+      <div><code id="metric-conv" class="empty">waiting…</code><button type="button" id="metric-copy" disabled>Copy</button></div>
+    </div>
+  </div>
+</aside>
+
+<div id="nola-snap"></div>
+
+<section id="nola-shell" role="dialog" aria-label="Nola, Noel Leeming AI assistant">
+  <div class="nola-bar" id="nola-bar">
+    <div class="nola-badge">nl</div>
+    <div class="nola-title"><b>Nola</b><span>Noel Leeming AI assistant</span></div>
+    <div class="nola-ctrls">
+      <button type="button" data-mode="dock-left"  title="Pin left"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+      <button type="button" data-mode="float"      title="Float"><svg viewBox="0 0 24 24"><rect x="6" y="7" width="13" height="11" rx="2"/><path d="M3 14V5a2 2 0 0 1 2-2h9"/></svg></button>
+      <button type="button" data-mode="dock-right" title="Pin right"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
+      <button type="button" data-mode="max"        title="Full screen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      <button type="button" data-mode="min"        title="Minimise"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+      <button type="button" data-mode="closed"     title="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+  </div>
+
+  <div class="nola-body" id="nola-body">
+    <div class="nola-status" id="nola-status">Connecting to Nola…</div>
+  </div>
+
+  <div class="rz rz-n" data-dir="n"></div><div class="rz rz-s" data-dir="s"></div>
+  <div class="rz rz-e" data-dir="e"></div><div class="rz rz-w" data-dir="w"></div>
+  <div class="rz rz-ne" data-dir="ne"></div><div class="rz rz-nw" data-dir="nw"></div>
+  <div class="rz rz-se" data-dir="se"></div><div class="rz rz-sw" data-dir="sw"></div>
+</section>
+
+<script>
+/* =====================================================================
+ * Nola — pinnable window around Salesforce Embedded Messaging (ESW)
+ *
+ * Window modes: dock-right | dock-left | float | max | min | closed
+ *  - Drag the bar to undock and move; drop near a side to pin there.
+ *  - Drag edges/corners to resize (docked: inner edge only).
+ *  - Double-click the bar toggles full screen; Esc exits it.
+ *  - Position, size and mode persist in localStorage.
+ *
+ * ESW renders the chat in <iframe class="embeddedMessagingFrame">. Moving that
+ * iframe in the DOM would reload it and drop the conversation, so it stays where
+ * ESW put it and is pinned (position: fixed) over the shell body instead.
+ * ===================================================================== */
+(() => {
+  const ESD = {
+    orgId: '00DBn00000BpIe5',
+    deploymentName: 'TWG_AG_NL_Web',
+    siteUrl: 'https://twg--agentforce.sandbox.my.site.com/ESWTWGAGNLWeb1791378486755',
+    scrt2URL: 'https://twg--agentforce.sandbox.my.salesforce-scrt.com',
+  };
+
+  const STORE_KEY = 'nola.window.v1';
+  const SNAP_PX = 48;                  // distance from a side that pins on drop
+  const MIN_W = 320, MIN_H = 420;
+  const MIN_BAR = { w: 360, h: 66, margin: 28 };
+  const CONNECT_TIMEOUT_MS = 20000;
+
+  const $ = id => document.getElementById(id);
+  const shell = $('nola-shell'), bar = $('nola-bar'), body = $('nola-body');
+  const snap = $('nola-snap'), launcher = $('nola-launcher'), status = $('nola-status');
+
+  const vw = () => window.innerWidth, vh = () => window.innerHeight;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const isDocked = m => m === 'dock-left' || m === 'dock-right';
+
+  /* ---------- State ---------- */
+  const state = (() => {
+    const defaults = { mode: 'dock-right', prevMode: 'dock-right', dockW: 420, float: { x: null, y: null, w: 420, h: 640 } };
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch {}
+    return { ...defaults, ...saved, float: { ...defaults.float, ...saved.float } };
+  })();
+  const save = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
+
+  /* ---------- Layout ---------- */
+  function clampFloat() {
+    const f = state.float;
+    f.w = clamp(f.w, MIN_W, vw() - 16);
+    f.h = clamp(f.h, MIN_H, vh() - 16);
+    if (f.x == null) { f.x = vw() - f.w - 28; f.y = vh() - f.h - 28; }
+    f.x = clamp(f.x, 120 - f.w, vw() - 120);   // keep 120px of the bar on screen
+    f.y = clamp(f.y, 0, vh() - 56);
+  }
+
+  function rectFor(mode) {
+    switch (mode) {
+      case 'dock-right': return { x: vw() - state.dockW, y: 0, w: state.dockW, h: vh() };
+      case 'dock-left':  return { x: 0, y: 0, w: state.dockW, h: vh() };
+      case 'max':        return { x: 0, y: 0, w: vw(), h: vh() };
+      case 'min':        return { x: vw() - MIN_BAR.w - MIN_BAR.margin, y: vh() - MIN_BAR.h - MIN_BAR.margin, w: MIN_BAR.w, h: MIN_BAR.h };
+      default:           clampFloat(); return { ...state.float };
+    }
+  }
+
+  function render({ animate = false } = {}) {
+    const { mode } = state;
+    state.dockW = clamp(state.dockW, MIN_W, Math.max(MIN_W, vw() * 0.6));
+
+    shell.dataset.mode = mode;
+    shell.hidden = mode === 'closed';
+    launcher.hidden = mode !== 'closed';
+    document.documentElement.style.setProperty('--dock-w', state.dockW + 'px');
+    document.body.classList.toggle('nola-pinned-right', mode === 'dock-right');
+    document.body.classList.toggle('nola-pinned-left', mode === 'dock-left');
+
+    const r = rectFor(mode);
+    shell.classList.toggle('animate', animate);
+    Object.assign(shell.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
+
+    shell.querySelectorAll('.nola-ctrls [data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+    shell.querySelector('[data-mode="max"]').title = mode === 'max' ? 'Exit full screen (Esc)' : 'Full screen';
+    shell.querySelector('[data-mode="min"]').title = mode === 'min' ? 'Restore' : 'Minimise';
+
+    save();
+    esw.sync();
+    if (animate) setTimeout(() => { shell.classList.remove('animate'); esw.sync(); }, 240);
+  }
+
+  function setMode(mode) {
+    if (mode === state.mode) {
+      if (mode !== 'max' && mode !== 'min') return;
+      mode = state.prevMode;                       // clicking max/min again restores
+    } else if (isDocked(state.mode) || state.mode === 'float') {
+      state.prevMode = state.mode;
+    }
+    state.mode = mode;
+    render({ animate: true });
+  }
+
+  /* ---------- Pointer gestures ---------- */
+  // Captures the pointer on `el` and calls onMove(dx, dy, event) until release.
+  function track(el, down, onMove, onEnd) {
+    el.setPointerCapture(down.pointerId);
+    document.body.classList.add('nola-interacting');
+    const move = e => onMove(e.clientX - down.clientX, e.clientY - down.clientY, e);
+    const end = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', end);
+      el.removeEventListener('pointercancel', end);
+      document.body.classList.remove('nola-interacting', 'nola-dragging');
+      onEnd && onEnd();
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+
+  function snapZone(x) {
+    if (x <= SNAP_PX) return 'dock-left';
+    if (x >= vw() - SNAP_PX) return 'dock-right';
+    return null;
+  }
+  function showSnap(zone) {
+    snap.classList.toggle('show', !!zone);
+    if (!zone) return;
+    const w = state.dockW;
+    Object.assign(snap.style, { top: '8px', height: vh() - 16 + 'px', width: w - 16 + 'px', left: (zone === 'dock-left' ? 8 : vw() - w + 8) + 'px' });
+  }
+
+  // Move: drag the bar. Tearing off a docked/minimised window turns it into a float.
+  bar.addEventListener('pointerdown', down => {
+    if (down.button !== 0 || down.target.closest('button') || state.mode === 'max') return;
+    down.preventDefault();
+    const start = shell.getBoundingClientRect();
+    let grabX = down.clientX - start.left, grabY = down.clientY - start.top;
+    let moved = false, zone = null;
+
+    track(bar, down, (dx, dy, e) => {
+      if (!moved) {
+        if (Math.hypot(dx, dy) < 4) return;          // ignore clicks / tiny jitters
+        moved = true;
+        document.body.classList.add('nola-dragging');
+        if (state.mode !== 'float') {
+          // keep the cursor at the same relative spot on the bar
+          grabX = state.float.w * (grabX / start.width);
+          grabY = Math.min(grabY, 40);
+          if (state.mode !== 'min') state.prevMode = state.mode;
+          state.mode = 'float';
+        }
+      }
+      state.float.x = e.clientX - grabX;
+      state.float.y = e.clientY - grabY;
+      render();
+      showSnap(zone = snapZone(e.clientX));
+    }, () => {
+      showSnap(null);
+      if (zone) { state.mode = zone; render({ animate: true }); }
+    });
+  });
+
+  // Resize: edges and corners.
+  shell.querySelectorAll('.rz').forEach(handle => handle.addEventListener('pointerdown', down => {
+    if (down.button !== 0) return;
+    down.preventDefault();
+    const dir = handle.dataset.dir;
+    const r0 = shell.getBoundingClientRect();
+
+    track(handle, down, (dx, dy) => {
+      if (state.mode === 'dock-right') state.dockW = r0.width - dx;
+      else if (state.mode === 'dock-left') state.dockW = r0.width + dx;
+      else {
+        let w = r0.width, h = r0.height;
+        if (dir.includes('e')) w += dx;
+        if (dir.includes('w')) w -= dx;
+        if (dir.includes('s')) h += dy;
+        if (dir.includes('n')) h -= dy;
+        w = clamp(w, MIN_W, vw());
+        h = clamp(h, MIN_H, vh());
+        state.float = {
+          x: dir.includes('w') ? r0.right - w : r0.left,
+          y: dir.includes('n') ? r0.bottom - h : r0.top,
+          w, h,
+        };
+      }
+      render();
+    });
+  }));
+
+  shell.querySelector('.nola-ctrls').addEventListener('click', e => {
+    const b = e.target.closest('[data-mode]');
+    if (b) setMode(b.dataset.mode);
+  });
+  bar.addEventListener('dblclick', e => { if (!e.target.closest('button')) setMode('max'); });
+  launcher.addEventListener('click', () => setMode(state.prevMode));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.mode === 'max') setMode('max'); });
+  window.addEventListener('resize', () => render());
+
+  /* ---------- Embedded Messaging ---------- */
+  const esw = (() => {
+    let frame = null;
+
+    const FRAME_STYLE = {
+      position: 'fixed', right: 'auto', bottom: 'auto', 'max-width': 'none', 'max-height': 'none',
+      'border-radius': '0', 'box-shadow': 'none', 'z-index': '2147483002',
+    };
+
+    function setStatus(msg, isError = false) {
+      status.textContent = msg;
+      status.classList.toggle('error', isError);
+      console[isError ? 'warn' : 'log']('[Nola]', msg);
+    }
+
+    // Pin the ESW iframe over the shell body.
+    function sync() {
+      if (!frame) return;
+      const r = body.getBoundingClientRect();
+      const visible = state.mode !== 'closed' && state.mode !== 'min';
+      const style = { ...FRAME_STYLE, left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', visibility: visible ? 'visible' : 'hidden' };
+      for (const [k, v] of Object.entries(style)) frame.style.setProperty(k, v, 'important');
+    }
+
+    function attach() {
+      frame = document.querySelector('iframe.embeddedMessagingFrame');
+      if (!frame) return setStatus('Salesforce opened the chat but its frame was not found.', true);
+      status.hidden = true;
+      new ResizeObserver(sync).observe(body);
+      // ESW rewrites the iframe's inline style (e.g. on its own maximise) — reapply ours.
+      new MutationObserver(() => requestAnimationFrame(sync)).observe(frame, { attributes: true, attributeFilter: ['style', 'class'] });
+      sync();
+    }
+
+    // launchChat() is rejected until ESW has created its (hidden) conversation button,
+    // which can come after onEmbeddedMessagingReady — so try on both events, with retries.
+    let launching = false;
+    async function launch() {
+      if (frame || launching) return;
+      launching = true;
+      setStatus('Opening Nola…');
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await embeddedservice_bootstrap.utilAPI.launchChat();
+          return attach();
+        } catch (err) {
+          if (attempt >= 10) { launching = false; return setStatus('Salesforce refused to open the chat: ' + (err?.message || err), true); }
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+    }
+
+    function init() {
+      try {
+        const s = embeddedservice_bootstrap.settings;
+        s.language = 'en_US';
+        s.enableUserInputForConversationWithBot = false;
+        s.hideChatButtonOnLoad = true;              // the shell is the launcher
+        embeddedservice_bootstrap.init(ESD.orgId, ESD.deploymentName, ESD.siteUrl, { scrt2URL: ESD.scrt2URL });
+      } catch (err) {
+        setStatus('Error initialising Embedded Messaging: ' + err.message, true);
+      }
+    }
+
+    function load() {
+      // Origin must be allowed on the deployment (CORS + allowed domains) in Setup.
+      const script = document.createElement('script');
+      script.src = ESD.siteUrl + '/assets/js/bootstrap.min.js';
+      script.onload = init;
+      script.onerror = () => setStatus('Couldn’t load the Salesforce chat script.', true);
+      document.body.appendChild(script);
+      setTimeout(() => { if (!frame) setStatus('Couldn’t connect to the Salesforce chat. Check the console for [Nola] / CORS errors.', true); }, CONNECT_TIMEOUT_MS);
+    }
+
+    window.addEventListener('onEmbeddedMessagingButtonCreated', launch);
+    window.addEventListener('onEmbeddedMessagingReady', () => setTimeout(launch, 300));
+    window.addEventListener('onEmbeddedMessagingInitError', () => setStatus('Salesforce chat failed to start (init error).', true));
+    // Keep the shell in step when the user uses ESW's own minimise / maximise.
+    window.addEventListener('onEmbeddedMessagingWindowMinimized', () => { if (state.mode !== 'min') setMode('min'); });
+    window.addEventListener('onEmbeddedMessagingWindowMaximized', () => { if (state.mode === 'min' || state.mode === 'closed') setMode(state.prevMode); });
+
+    return { sync, load };
+  })();
+
+  /* ---------- Response metrics ----------
+   * TTFT  = user message sent → first bot token.
+   * Total = user message sent → last bot token (a response counts as complete
+   *         after COMPLETE_IDLE_MS with no further tokens).
+   * Card turns green / amber / red on TTFT. */
+  (() => {
+    const TTFT_OK_S = 8, TTFT_WARN_S = 10;
+    const COMPLETE_IDLE_MS = 500;
+    const EXPANDED_KEY = 'nola.metrics.expanded';
+    const BOT_ROLES = ['Chatbot', 'Agent', 'Bot'];
+
+    const toggle = $('metrics-toggle'), card = $('metrics-card');
+    const ttftEl = $('metric-ttft'), totalEl = $('metric-total');
+    const convEl = $('metric-conv'), copyBtn = $('metric-copy');
+
+    /* Expand / collapse (remembered for the browser session) */
+    function setExpanded(open) {
+      card.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+      sessionStorage.setItem(EXPANDED_KEY, open ? '1' : '');
+    }
+    toggle.addEventListener('click', () => setExpanded(card.hidden));
+    setExpanded(sessionStorage.getItem(EXPANDED_KEY) === '1');
+
+    /* Timers */
+    let sentAt = null, firstTokenAt = null, lastTokenAt = null, ticker = null, idleTimer = null;
+
+    function paint() {
+      const now = ticker ? Date.now() : (lastTokenAt ?? Date.now());   // frozen once complete
+      const ttft = ((firstTokenAt ?? now) - sentAt) / 1000;
+      ttftEl.textContent = ttft.toFixed(1);
+      totalEl.textContent = ((now - sentAt) / 1000).toFixed(1);
+      card.dataset.level = ttft <= TTFT_OK_S ? 'ok' : ttft <= TTFT_WARN_S ? 'warn' : 'slow';
+    }
+
+    function onUserMessage() {
+      clearTimeout(idleTimer);
+      clearInterval(ticker);
+      sentAt = Date.now();
+      firstTokenAt = lastTokenAt = null;
+      ticker = setInterval(paint, 100);
+      paint();
+    }
+
+    function onBotToken() {
+      if (!ticker) return;                          // response already measured
+      lastTokenAt = Date.now();
+      firstTokenAt ??= lastTokenAt;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => { clearInterval(ticker); ticker = null; paint(); }, COMPLETE_IDLE_MS);
+    }
+
+    window.addEventListener('onEmbeddedMessageSent', e => {
+      const role = (e.detail || e.data || {}).conversationEntry?.sender?.role;
+      if (role === 'EndUser') onUserMessage();
+      else if (BOT_ROLES.includes(role)) onBotToken();
+    });
+
+    /* Session (conversation) ID — from event payloads, or the ID ESW persists in storage */
+    let convId = null, pollTimer = null;
+
+    function showConversation(id) {
+      convId = id || null;
+      convEl.textContent = convId || 'waiting…';
+      convEl.title = convId || '';
+      convEl.classList.toggle('empty', !convId);
+      copyBtn.disabled = !convId;
+    }
+
+    function storedConversationId() {
+      for (const store of [localStorage, sessionStorage]) {
+        for (let i = 0; i < store.length; i++) {
+          const key = store.key(i);
+          if (!key?.startsWith('ESW_') || !/CONVERSATION_ID/i.test(key) || !key.includes(ESD.deploymentName)) continue;
+          const v = store.getItem(key);
+          if (/^[0-9a-f-]{16,}$/i.test(v)) return v;
+        }
+      }
+      return null;
+    }
+
+    function refreshConversation(e) {
+      const d = e?.detail || e?.data || {};
+      const id = d.conversationId || d.conversation?.conversationId
+        || d.conversationEntry?.entryPayload?.conversationIdentifier || storedConversationId();
+      if (id && id !== convId) showConversation(id);
+    }
+
+    // ESW may write the ID to storage a little after its events fire — poll briefly.
+    function watchStorage() {
+      clearInterval(pollTimer);
+      const before = convId;
+      let tries = 0;
+      pollTimer = setInterval(() => {
+        refreshConversation();
+        if (convId !== before || ++tries >= 60) clearInterval(pollTimer);
+      }, 500);
+    }
+
+    copyBtn.addEventListener('click', async () => {
+      if (!convId) return;
+      await navigator.clipboard.writeText(convId);
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+    });
+
+    ['onEmbeddedMessagingReady', 'onEmbeddedMessagingFirstBotMessageSent', 'onEmbeddedMessagingConversationParticipantChanged', 'onEmbeddedMessageSent']
+      .forEach(name => window.addEventListener(name, refreshConversation));
+    window.addEventListener('onEmbeddedMessagingConversationOpened', e => { refreshConversation(e); watchStorage(); });
+    ['onEmbeddedMessagingConversationClosed', 'onEmbeddedMessagingWindowClosed']
+      .forEach(name => window.addEventListener(name, () => { showConversation(null); watchStorage(); }));
+    watchStorage();
+  })();
+
+  render();
+  esw.load();
+})();
+</script>
+</body>
+</html>
