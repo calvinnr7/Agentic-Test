@@ -350,7 +350,29 @@
 
     save();
     esw.sync();
-    if (animate) setTimeout(() => { shell.classList.remove('animate'); esw.sync(); }, 240);
+    if (animate) followAnimation();
+  }
+
+  // The shell glides for ~220ms when it snaps/docks; keep the chat frame on it every frame.
+  let animUntil = 0;
+  function followAnimation() {
+    const running = animUntil > performance.now();
+    animUntil = performance.now() + 260;
+    if (running) return;
+    requestAnimationFrame(function step() {
+      esw.sync();
+      if (performance.now() < animUntil) return requestAnimationFrame(step);
+      shell.classList.remove('animate');
+      esw.sync();
+    });
+  }
+
+  // Pointer events can fire faster than the screen refreshes — render at most once per frame.
+  let renderQueued = false;
+  function renderSoon() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => { renderQueued = false; render(); });
   }
 
   function setMode(mode) {
@@ -417,11 +439,12 @@
       }
       state.float.x = e.clientX - grabX;
       state.float.y = e.clientY - grabY;
-      render();
+      renderSoon();
       showSnap(zone = snapZone(e.clientX));
     }, () => {
       showSnap(null);
-      if (zone) { state.mode = zone; render({ animate: true }); }
+      if (zone) state.mode = zone;
+      render({ animate: !!zone });
     });
   });
 
@@ -449,8 +472,8 @@
           w, h,
         };
       }
-      render();
-    });
+      renderSoon();
+    }, () => render());
   }));
 
   shell.querySelector('.nola-ctrls').addEventListener('click', e => {
@@ -464,11 +487,13 @@
 
   /* ---------- Embedded Messaging ---------- */
   const esw = (() => {
-    let frame = null;
+    let frame = null, styleObserver = null;
 
+    // transition/transform/animation off: ESW's stylesheet animates the frame, which makes it trail the shell.
     const FRAME_STYLE = {
       position: 'fixed', right: 'auto', bottom: 'auto', 'max-width': 'none', 'max-height': 'none',
       'border-radius': '0', 'box-shadow': 'none', 'z-index': '2147483002',
+      transition: 'none', transform: 'none', animation: 'none',
     };
 
     function setStatus(msg, isError = false) {
@@ -484,6 +509,7 @@
       const visible = state.mode !== 'closed' && state.mode !== 'min';
       const style = { ...FRAME_STYLE, left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', visibility: visible ? 'visible' : 'hidden' };
       for (const [k, v] of Object.entries(style)) frame.style.setProperty(k, v, 'important');
+      styleObserver?.takeRecords();   // drop our own writes so they don't trigger a second sync
     }
 
     function attach() {
@@ -492,7 +518,8 @@
       status.hidden = true;
       new ResizeObserver(sync).observe(body);
       // ESW rewrites the iframe's inline style (e.g. on its own maximise) — reapply ours.
-      new MutationObserver(() => requestAnimationFrame(sync)).observe(frame, { attributes: true, attributeFilter: ['style', 'class'] });
+      styleObserver = new MutationObserver(sync);
+      styleObserver.observe(frame, { attributes: true, attributeFilter: ['style', 'class'] });
       sync();
     }
 
