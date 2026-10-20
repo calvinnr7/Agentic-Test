@@ -66,21 +66,12 @@
   /* Without this the ESW iframe swallows pointer events while dragging over it */
   body.nola-interacting iframe.embeddedMessagingFrame { pointer-events: none !important; }
 
-  /* ---------- Launcher (when closed) ---------- */
-  #nola-launcher {
-    position: fixed; right: 28px; bottom: 28px; z-index: 2147483000;
-    display: flex; align-items: center; gap: 10px; padding: 10px 22px 10px 10px;
-    border: 3px solid var(--nl-yellow); border-radius: 999px;
-    background: var(--nl-red); color: #fff; font: inherit; font-weight: 700;
-    box-shadow: var(--shadow); cursor: pointer;
-  }
+  /* ---------- Window shell ---------- */
   .nola-badge {
     flex: none; width: 42px; height: 42px; border-radius: 50%;
     border: 3px solid var(--nl-yellow); display: grid; place-items: center;
     font-weight: 800; font-size: 16px;
   }
-
-  /* ---------- Window shell ---------- */
   #nola-shell {
     position: fixed; z-index: 2147483001;
     display: flex; flex-direction: column; overflow: hidden;
@@ -121,23 +112,29 @@
   .nola-body { flex: 1; min-height: 0; display: grid; place-items: center; }
   .nola-status { padding: 24px; text-align: center; color: var(--muted); font-size: 15px; }
   .nola-status.error { color: var(--nl-red-dark); }
-  #nola-shell[data-mode="min"] :is(.nola-body, .rz) { display: none; }
+  #nola-shell[data-mode="min"] .nola-body { display: none; }
 
-  /* Resize handles. Docked: inner edge only. Maximised: none. */
-  .rz { position: absolute; z-index: 3; touch-action: none; }
-  .rz-n, .rz-s { left: 10px; right: 10px; height: 10px; cursor: ns-resize; }
-  .rz-e, .rz-w { top: 10px; bottom: 10px; width: 10px; cursor: ew-resize; }
-  .rz-n { top: -4px; } .rz-s { bottom: -4px; } .rz-e { right: -4px; } .rz-w { left: -4px; }
-  .rz-ne, .rz-nw, .rz-se, .rz-sw { width: 16px; height: 16px; }
-  .rz-ne { top: -4px; right: -4px; cursor: nesw-resize; }
-  .rz-nw { top: -4px; left: -4px; cursor: nwse-resize; }
-  .rz-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
-  .rz-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
-  #nola-shell[data-mode="dock-right"] .rz:not(.rz-w),
-  #nola-shell[data-mode="dock-left"] .rz:not(.rz-e),
-  #nola-shell[data-mode="max"] .rz { display: none; }
-  #nola-shell[data-mode="dock-right"] .rz-w,
-  #nola-shell[data-mode="dock-left"] .rz-e { top: 0; bottom: 0; }
+  /* Resize handles live in their own layer above the ESW iframe (which sits on top of the
+     shell and would otherwise swallow the edges). JS keeps #nola-grips on the shell's rect.
+     Each handle straddles the edge: 6px outside, 6px inside. Docked: inner edge only. */
+  #nola-grips { position: fixed; z-index: 2147483003; pointer-events: none; }
+  #nola-grips.animate { transition: left .22s ease, top .22s ease, width .22s ease, height .22s ease; }
+  #nola-grips:is([data-mode="max"], [data-mode="min"]) { display: none; }
+  .rz { position: absolute; pointer-events: auto; touch-action: none; }
+  .rz-n, .rz-s { left: 12px; right: 12px; height: 12px; cursor: ns-resize; }
+  .rz-e, .rz-w { top: 12px; bottom: 12px; width: 12px; cursor: ew-resize; }
+  .rz-n { top: -6px; } .rz-s { bottom: -6px; } .rz-e { right: -6px; } .rz-w { left: -6px; }
+  .rz-ne, .rz-nw, .rz-se, .rz-sw { width: 20px; height: 20px; }
+  .rz-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+  .rz-nw { top: -6px; left: -6px; cursor: nwse-resize; }
+  .rz-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+  .rz-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+  #nola-grips[data-mode="dock-right"] .rz:not(.rz-w),
+  #nola-grips[data-mode="dock-left"] .rz:not(.rz-e) { display: none; }
+  #nola-grips[data-mode="dock-right"] .rz-w,
+  #nola-grips[data-mode="dock-left"] .rz-e { top: 0; bottom: 0; }
+  #nola-grips[data-mode="dock-right"] .rz-w { left: 0; }   /* keep docked handles on-screen */
+  #nola-grips[data-mode="dock-left"] .rz-e { right: 0; }
 
   /* Snap preview while dragging near a side */
   #nola-snap {
@@ -221,10 +218,6 @@
   </div>
 </main>
 
-<button id="nola-launcher" type="button" aria-label="Open Nola chat" hidden>
-  <span class="nola-badge">nl</span> Chat with Nola
-</button>
-
 <aside id="nola-metrics" aria-label="Response metrics">
   <button type="button" class="metrics-toggle" id="metrics-toggle" aria-expanded="false" aria-controls="metrics-card">⏱ Metrics <span class="chev">▸</span></button>
   <div class="metrics-card" id="metrics-card" hidden>
@@ -250,25 +243,26 @@
       <button type="button" data-mode="dock-right" title="Pin right"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
       <button type="button" data-mode="max"        title="Full screen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       <button type="button" data-mode="min"        title="Minimise"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
-      <button type="button" data-mode="closed"     title="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
   </div>
 
   <div class="nola-body" id="nola-body">
     <div class="nola-status" id="nola-status">Connecting to Nola…</div>
   </div>
+</section>
 
+<div id="nola-grips" aria-hidden="true">
   <div class="rz rz-n" data-dir="n"></div><div class="rz rz-s" data-dir="s"></div>
   <div class="rz rz-e" data-dir="e"></div><div class="rz rz-w" data-dir="w"></div>
   <div class="rz rz-ne" data-dir="ne"></div><div class="rz rz-nw" data-dir="nw"></div>
   <div class="rz rz-se" data-dir="se"></div><div class="rz rz-sw" data-dir="sw"></div>
-</section>
+</div>
 
 <script>
 /* =====================================================================
  * Nola — pinnable window around Salesforce Embedded Messaging (ESW)
  *
- * Window modes: dock-right | dock-left | float | max | min | closed
+ * Window modes: dock-right | dock-left | float | max | min
  *  - Drag the bar to undock and move; drop near a side to pin there.
  *  - Drag edges/corners to resize (docked: inner edge only).
  *  - Double-click the bar toggles full screen; Esc exits it.
@@ -294,10 +288,11 @@
 
   const $ = id => document.getElementById(id);
   const shell = $('nola-shell'), bar = $('nola-bar'), body = $('nola-body');
-  const snap = $('nola-snap'), launcher = $('nola-launcher'), status = $('nola-status');
+  const grips = $('nola-grips'), snap = $('nola-snap'), status = $('nola-status');
 
   const vw = () => window.innerWidth, vh = () => window.innerHeight;
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const MODES = ['dock-right', 'dock-left', 'float', 'max', 'min'];
   const isDocked = m => m === 'dock-left' || m === 'dock-right';
 
   /* ---------- State ---------- */
@@ -305,7 +300,10 @@
     const defaults = { mode: 'dock-right', prevMode: 'dock-right', dockW: 420, float: { x: null, y: null, w: 420, h: 640 } };
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch {}
-    return { ...defaults, ...saved, float: { ...defaults.float, ...saved.float } };
+    const s = { ...defaults, ...saved, float: { ...defaults.float, ...saved.float } };
+    if (!MODES.includes(s.mode)) s.mode = defaults.mode;          // e.g. 'closed' from an older version
+    if (!MODES.includes(s.prevMode) || s.prevMode === 'max' || s.prevMode === 'min') s.prevMode = defaults.prevMode;
+    return s;
   })();
   const save = () => localStorage.setItem(STORE_KEY, JSON.stringify(state));
 
@@ -333,22 +331,24 @@
     const { mode } = state;
     state.dockW = clamp(state.dockW, MIN_W, Math.max(MIN_W, vw() * 0.6));
 
-    shell.dataset.mode = mode;
-    shell.hidden = mode === 'closed';
-    launcher.hidden = mode !== 'closed';
+    shell.dataset.mode = grips.dataset.mode = mode;
     document.documentElement.style.setProperty('--dock-w', state.dockW + 'px');
     document.body.classList.toggle('nola-pinned-right', mode === 'dock-right');
     document.body.classList.toggle('nola-pinned-left', mode === 'dock-left');
 
     const r = rectFor(mode);
-    shell.classList.toggle('animate', animate);
-    Object.assign(shell.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
+    const box = { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' };
+    for (const el of [shell, grips]) {
+      el.classList.toggle('animate', animate);
+      Object.assign(el.style, box);
+    }
 
     shell.querySelectorAll('.nola-ctrls [data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
     shell.querySelector('[data-mode="max"]').title = mode === 'max' ? 'Exit full screen (Esc)' : 'Full screen';
     shell.querySelector('[data-mode="min"]').title = mode === 'min' ? 'Restore' : 'Minimise';
 
     save();
+    if (mode !== 'min') esw.reopen();
     esw.sync();
     if (animate) followAnimation();
   }
@@ -363,6 +363,7 @@
       esw.sync();
       if (performance.now() < animUntil) return requestAnimationFrame(step);
       shell.classList.remove('animate');
+      grips.classList.remove('animate');
       esw.sync();
     });
   }
@@ -449,7 +450,7 @@
   });
 
   // Resize: edges and corners.
-  shell.querySelectorAll('.rz').forEach(handle => handle.addEventListener('pointerdown', down => {
+  grips.querySelectorAll('.rz').forEach(handle => handle.addEventListener('pointerdown', down => {
     if (down.button !== 0) return;
     down.preventDefault();
     const dir = handle.dataset.dir;
@@ -481,7 +482,6 @@
     if (b) setMode(b.dataset.mode);
   });
   bar.addEventListener('dblclick', e => { if (!e.target.closest('button')) setMode('max'); });
-  launcher.addEventListener('click', () => setMode(state.prevMode));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.mode === 'max') setMode('max'); });
   window.addEventListener('resize', () => render());
 
@@ -506,7 +506,7 @@
     function sync() {
       if (!frame) return;
       const r = body.getBoundingClientRect();
-      const visible = state.mode !== 'closed' && state.mode !== 'min';
+      const visible = state.mode !== 'min';
       const style = { ...FRAME_STYLE, left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', visibility: visible ? 'visible' : 'hidden' };
       for (const [k, v] of Object.entries(style)) frame.style.setProperty(k, v, 'important');
       styleObserver?.takeRecords();   // drop our own writes so they don't trigger a second sync
@@ -546,7 +546,7 @@
         const s = embeddedservice_bootstrap.settings;
         s.language = 'en_US';
         s.enableUserInputForConversationWithBot = false;
-        s.hideChatButtonOnLoad = true;              // the shell is the launcher
+        s.hideChatButtonOnLoad = true;              // the shell replaces ESW's launcher
         embeddedservice_bootstrap.init(ESD.orgId, ESD.deploymentName, ESD.siteUrl, { scrt2URL: ESD.scrt2URL });
       } catch (err) {
         setStatus('Error initialising Embedded Messaging: ' + err.message, true);
@@ -567,10 +567,27 @@
     window.addEventListener('onEmbeddedMessagingReady', () => setTimeout(launch, 300));
     window.addEventListener('onEmbeddedMessagingInitError', () => setStatus('Salesforce chat failed to start (init error).', true));
     // Keep the shell in step when the user uses ESW's own minimise / maximise.
-    window.addEventListener('onEmbeddedMessagingWindowMinimized', () => { if (state.mode !== 'min') setMode('min'); });
-    window.addEventListener('onEmbeddedMessagingWindowMaximized', () => { if (state.mode === 'min' || state.mode === 'closed') setMode(state.prevMode); });
+    // ESW's own minimise (in its chat header) collapses the conversation inside the iframe
+    // to its minimised button. Showing the iframe again isn't enough — ESW has to be told
+    // to maximise, otherwise the restored window shows that button instead of the chat.
+    let eswMinimized = false;
+    function reopen() {
+      if (!frame || !eswMinimized) return;
+      eswMinimized = false;
+      embeddedservice_bootstrap.utilAPI.launchChat()
+        .catch(err => { eswMinimized = true; setStatus('Couldn’t reopen the chat: ' + (err?.message || err), true); });
+    }
 
-    return { sync, load };
+    window.addEventListener('onEmbeddedMessagingWindowMinimized', () => {
+      eswMinimized = true;
+      if (state.mode !== 'min') setMode('min');
+    });
+    window.addEventListener('onEmbeddedMessagingWindowMaximized', () => {
+      eswMinimized = false;
+      if (state.mode === 'min') setMode(state.prevMode);
+    });
+
+    return { sync, load, reopen };
   })();
 
   /* ---------- Response metrics ----------
