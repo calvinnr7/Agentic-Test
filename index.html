@@ -250,6 +250,10 @@
            supported API), so the hideChatButton() call below is the primary fix. */
         .embeddedMessagingConversationButtonWrapper,
         .embeddedMessagingConversationButton { display: none !important; }
+        /* When the chat is minimised, Salesforce shrinks its chat frame into its own
+           minimised bar (drawn inside the frame, so CSS above can't reach it).
+           Hide the whole frame while minimised; #nola-launch reopens it. */
+        body.nola-chat-minimized iframe.embeddedMessagingFrame { visibility: hidden !important; }
         #nola-launch img {
             width: 44px; height: 44px; border-radius: 50%;
             border: 2px solid #FFD400; object-fit: cover; display: block;
@@ -290,6 +294,7 @@
         // Custom launcher wiring
         const nolaLaunch = document.getElementById('nola-launch');
         nolaLaunch.addEventListener('click', function () {
+            document.body.classList.remove('nola-chat-minimized');
             embeddedservice_bootstrap.utilAPI.launchChat()
                 .then(function () { nolaLaunch.hidden = true; })
                 .catch(function (err) { console.error('[Agent] launchChat failed:', err); });
@@ -302,9 +307,18 @@
         });
         window.addEventListener('onEmbeddedMessagingReady', function () { nolaLaunch.hidden = false; });
         // Hide it while the chat window is open; bring it back when minimised or closed
-        window.addEventListener('onEmbeddedMessagingWindowMaximized', function () { nolaLaunch.hidden = true; });
-        window.addEventListener('onEmbeddedMessagingWindowMinimized', function () { nolaLaunch.hidden = false; });
-        window.addEventListener('onEmbeddedMessagingWindowClosed', function () { nolaLaunch.hidden = false; });
+        window.addEventListener('onEmbeddedMessagingWindowMaximized', function () {
+            document.body.classList.remove('nola-chat-minimized');
+            nolaLaunch.hidden = true;
+        });
+        window.addEventListener('onEmbeddedMessagingWindowMinimized', function () {
+            document.body.classList.add('nola-chat-minimized');
+            nolaLaunch.hidden = false;
+        });
+        window.addEventListener('onEmbeddedMessagingWindowClosed', function () {
+            document.body.classList.remove('nola-chat-minimized');
+            nolaLaunch.hidden = false;
+        });
 
         function initEmbeddedMessaging() {
             try {
