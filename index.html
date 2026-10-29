@@ -244,6 +244,12 @@
         #nola-launch:hover { background: #A61F25; }
         #nola-launch:focus-visible { outline: 3px solid #243C94; outline-offset: 3px; }
         #nola-launch[hidden] { display: none; }
+        /* Belt and braces: Salesforce's own launcher ("Ask Me Anything") and its
+           minimised bar. hideChatButtonOnLoad alone didn't hide it on this
+           deployment. These are Salesforce's internal class names (not a
+           supported API), so the hideChatButton() call below is the primary fix. */
+        .embeddedMessagingConversationButtonWrapper,
+        .embeddedMessagingConversationButton { display: none !important; }
         #nola-launch img {
             width: 44px; height: 44px; border-radius: 50%;
             border: 2px solid #FFD400; object-fit: cover; display: block;
@@ -289,7 +295,11 @@
                 .catch(function (err) { console.error('[Agent] launchChat failed:', err); });
         });
         // Show the launcher once Salesforce is ready to open the chat
-        window.addEventListener('onEmbeddedMessagingButtonCreated', function () { nolaLaunch.hidden = false; });
+        window.addEventListener('onEmbeddedMessagingButtonCreated', function () {
+            // Supported API: hide Salesforce's own button once it exists
+            try { embeddedservice_bootstrap.utilAPI.hideChatButton(); } catch (e) { console.warn('[Agent] hideChatButton failed:', e); }
+            nolaLaunch.hidden = false;
+        });
         window.addEventListener('onEmbeddedMessagingReady', function () { nolaLaunch.hidden = false; });
         // Hide it while the chat window is open; bring it back when minimised or closed
         window.addEventListener('onEmbeddedMessagingWindowMaximized', function () { nolaLaunch.hidden = true; });
