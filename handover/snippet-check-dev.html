@@ -1,0 +1,118 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Nola snippet check (dev values)</title></head><body style="margin:0;font-family:sans-serif;background:#f5f7fb"><p style="padding:40px">Bare page with only the handover snippet pasted in. Not the NL site.</p>
+<!-- =====================================================================
+     NOLA CHAT LAUNCHER + SALESFORCE ENHANCED CHAT (INLINE MODE)
+     Paste once, just before </body>. Replace the existing Nola chat snippet;
+     don't add a second one.
+
+     Desktop:        Nola's face + "Chat with Nola", bottom right.
+     Mobile (<=600): Nola's face only; the chat opens full screen.
+
+     Replace the 4 values marked UAT_... with the values from the UAT
+     deployment's Setup > Embedded Service Deployments > Code Snippet.
+     Host nola-avatar.jpg (256x256) and update its path below.
+     Requires an Enhanced Chat v2 deployment (inline mode is v2 only).
+     ===================================================================== -->
+
+<style>
+  #nola-launch {
+    position: fixed; right: 24px; bottom: 24px; z-index: 2147483000;
+    display: flex; align-items: center; gap: 10px; padding: 6px 22px 6px 6px;
+    border: 3px solid #FFD400; border-radius: 999px; background: #E20512; color: #fff;
+    font: 700 16px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .25); cursor: pointer;
+  }
+  #nola-launch[hidden] { display: none; }
+  #nola-launch img { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #FFD400; object-fit: cover; }
+
+  /* The panel Salesforce renders the chat into */
+  #nola-panel {
+    position: fixed; right: 24px; bottom: 24px; z-index: 2147483001;
+    width: 400px; height: min(680px, calc(100vh - 48px));
+    border-radius: 16px; overflow: hidden; background: #fff;
+    box-shadow: 0 24px 60px rgba(20, 24, 40, .28);
+  }
+  /* Hide with visibility, not display/removal, so the conversation stays live */
+  #nola-panel.is-hidden { visibility: hidden; pointer-events: none; }
+  #nola-inline { width: 100%; height: 100%; }
+  #nola-panel-min {
+    position: absolute; top: -34px; right: 0; z-index: 1;
+    border: 0; border-radius: 999px; padding: 6px 12px; background: #E20512; color: #fff;
+    font: 700 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .2); cursor: pointer;
+  }
+  @media (max-width: 600px) {
+    #nola-launch { padding: 4px; right: 16px; bottom: 16px; }
+    #nola-launch span { display: none; }
+    #nola-launch img { width: 52px; height: 52px; }
+    #nola-panel { inset: 0; width: auto; height: auto; border-radius: 0; }
+    #nola-panel-min { top: auto; bottom: 12px; right: 12px; }
+  }
+</style>
+
+<button id="nola-launch" type="button" aria-label="Chat with Nola" hidden>
+  <img src="nola-avatar.jpg" alt="" width="44" height="44">
+  <span>Chat with Nola</span>
+</button>
+
+<div id="nola-panel" class="is-hidden" role="dialog" aria-label="Chat with Nola">
+  <button id="nola-panel-min" type="button" aria-label="Minimise chat">&minus; Minimise</button>
+  <div id="nola-inline"></div>
+</div>
+
+<script>
+  // Launcher behaviour. Must load before the Salesforce snippet below.
+  (function () {
+    var btn = document.getElementById('nola-launch');
+    var panel = document.getElementById('nola-panel');
+    var launched = false;
+    function showPanel() { panel.classList.remove('is-hidden'); btn.hidden = true; }
+    function hidePanel() { panel.classList.add('is-hidden'); btn.hidden = false; }
+
+    // Every click calls launchChat(): it starts the chat the first time and
+    // re-maximises a minimised conversation after that.
+    btn.addEventListener('click', function () {
+      showPanel();
+      embeddedservice_bootstrap.utilAPI.launchChat()
+        .then(function () { launched = true; })
+        .catch(function (err) { console.error('[Nola] launchChat failed:', err); hidePanel(); });
+    });
+    document.getElementById('nola-panel-min').addEventListener('click', hidePanel);
+
+    window.addEventListener('onEmbeddedMessagingReady', function () { if (!launched) btn.hidden = false; });
+    // Salesforce's own minimise (chevron in its header) would collapse the chat
+    // into its "Ask Me Anything" button. Re-maximise it and hide our panel instead.
+    window.addEventListener('onEmbeddedMessagingWindowMinimized', function () {
+      embeddedservice_bootstrap.utilAPI.launchChat()
+        .catch(function (err) { console.error('[Nola] re-maximise failed:', err); });
+      hidePanel();
+    });
+    window.addEventListener('onEmbeddedMessagingWindowClosed', function () { launched = false; hidePanel(); });
+  })();
+</script>
+
+<!-- Salesforce Enhanced Chat snippet (from Setup > Code Snippet) + 5 settings -->
+<script type="text/javascript">
+  function initEmbeddedMessaging() {
+    try {
+      embeddedservice_bootstrap.settings.language = 'en_US';
+      embeddedservice_bootstrap.settings.enableUserInputForConversationWithBot = false;
+      embeddedservice_bootstrap.settings.displayMode = 'inline';
+      embeddedservice_bootstrap.settings.targetElement = document.getElementById('nola-inline');
+      embeddedservice_bootstrap.settings.disableInlineAutoLaunch = true;
+      embeddedservice_bootstrap.settings.hideChatButtonOnLoad = true;
+
+      embeddedservice_bootstrap.init(
+        '00DBn00000BpIe5',
+        'TWG_AG_NL_Web',
+        'https://twg--agentforce.sandbox.my.site.com/ESWTWGAGNLWeb1791378486755',
+        { scrt2URL: 'https://twg--agentforce.sandbox.my.salesforce-scrt.com' }
+      );
+    } catch (err) {
+      console.error('Error loading Embedded Messaging: ', err);
+    }
+  }
+</script>
+<script type="text/javascript" src="https://twg--agentforce.sandbox.my.site.com/ESWTWGAGNLWeb1791378486755/assets/js/bootstrap.min.js" onload="initEmbeddedMessaging()"></script>
+<!-- ============================ END NOLA CHAT ============================ -->
+
+</body></html>
