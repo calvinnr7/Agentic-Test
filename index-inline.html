@@ -285,7 +285,8 @@
 
             btn.addEventListener('click', function () {
                 showPanel();
-                if (launched) return;                 // conversation already running: just show it
+                // Always call launchChat(): it starts the chat the first time and, per Salesforce's
+                // docs, re-maximises a minimised conversation (which also hides Salesforce's button).
                 window.embeddedservice_bootstrap.utilAPI.launchChat()
                     .then(function () { launched = true; })
                     .catch(function (err) { console.error('[Nola] launchChat failed:', err); hidePanel(); });
@@ -293,8 +294,14 @@
             document.getElementById('nola-panel-min').addEventListener('click', hidePanel);
 
             window.addEventListener('onEmbeddedMessagingReady', function () { if (!launched) btn.hidden = false; });
-            // Salesforce's own minimise / close inside the chat header: keep our panel in step
-            window.addEventListener('onEmbeddedMessagingWindowMinimized', hidePanel);
+            // Salesforce's own minimise (chevron in its chat header) would collapse the chat into its
+            // "Ask Me Anything" button. Turn it into our minimise instead: re-maximise the chat with the
+            // supported launchChat() API (so Salesforce's button stays hidden), then hide our panel.
+            window.addEventListener('onEmbeddedMessagingWindowMinimized', function () {
+                window.embeddedservice_bootstrap.utilAPI.launchChat()
+                    .catch(function (err) { console.error('[Nola] re-maximise failed:', err); });
+                hidePanel();
+            });
             window.addEventListener('onEmbeddedMessagingWindowClosed', function () { launched = false; hidePanel(); });
 
             // Debug: log which Salesforce events fire (open the console to see them)
@@ -336,6 +343,7 @@
                     embeddedservice_bootstrap.settings.displayMode = 'inline';
                     embeddedservice_bootstrap.settings.targetElement = document.getElementById('nola-inline');
                     embeddedservice_bootstrap.settings.disableInlineAutoLaunch = true; // open on our button click
+                    embeddedservice_bootstrap.settings.hideChatButtonOnLoad = true;     // no Salesforce button on load
 
                     console.log('[Agent] Calling init with:', {
                         orgId: activeConfig.orgId,
