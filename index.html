@@ -226,55 +226,6 @@
         </div>
     </footer>
 
-    <!-- ================= NOLA LAUNCHER (for the website team) =================
-         Supported APIs only: hideChatButtonOnLoad, hideChatButton(), launchChat().
-         No CSS on Salesforce's elements. Desktop: face + "Chat with Nola".
-         Mobile (<=600px): face only. -->
-    <style>
-        #nola-launch {
-            position: fixed; right: 24px; bottom: 24px; z-index: 2147483000;
-            display: flex; align-items: center; gap: 10px; padding: 6px 22px 6px 6px;
-            border: 3px solid #FFD400; border-radius: 999px; background: #E20512; color: #fff;
-            font: 700 16px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, .25); cursor: pointer;
-        }
-        #nola-launch[hidden] { display: none; }
-        #nola-launch img { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #FFD400; object-fit: cover; }
-        @media (max-width: 600px) {
-            #nola-launch { padding: 4px; right: 16px; bottom: 16px; }
-            #nola-launch span { display: none; }
-            #nola-launch img { width: 52px; height: 52px; }
-        }
-    </style>
-    <button id="nola-launch" type="button" aria-label="Chat with Nola" hidden>
-        <img src="nola-avatar.jpg" alt="" width="44" height="44">
-        <span>Chat with Nola</span>
-    </button>
-    <script>
-        (function () {
-            var btn = document.getElementById('nola-launch');
-            var esb = function () { return window.embeddedservice_bootstrap; };
-            // Re-hide Salesforce's own button a few times: it can re-appear just after an event fires.
-            function hideStandard() {
-                [0, 300, 1000].forEach(function (ms) {
-                    setTimeout(function () { try { esb().utilAPI.hideChatButton(); } catch (e) {} }, ms);
-                });
-            }
-            btn.addEventListener('click', function () {
-                esb().utilAPI.launchChat()
-                    .then(function () { btn.hidden = true; })
-                    .catch(function (err) { console.error('[Nola] launchChat failed:', err); });
-            });
-            window.addEventListener('onEmbeddedMessagingReady', function () { btn.hidden = false; hideStandard(); });
-            window.addEventListener('onEmbeddedMessagingButtonCreated', hideStandard);
-            window.addEventListener('onEmbeddedMessagingConversationStarted', function () { btn.hidden = true; });
-            window.addEventListener('onEmbeddedMessagingWindowMaximized', function () { btn.hidden = true; });
-            window.addEventListener('onEmbeddedMessagingWindowMinimized', function () { btn.hidden = false; hideStandard(); });
-            window.addEventListener('onEmbeddedMessagingWindowClosed', function () { btn.hidden = false; hideStandard(); });
-        })();
-    </script>
-    <!-- =============================== END NOLA LAUNCHER ============================== -->
-
     <script src="nav.js"></script>
     <script src="response-timer.js"></script>
     <script src="session-ids.js"></script>
@@ -289,9 +240,10 @@
         }
     </script>
 
-    <!-- Salesforce Embedded Messaging snippet (from Setup > Code Snippet) with one
-         extra line: hideChatButtonOnLoad = true. The NOLA LAUNCHER block above
-         provides the button. -->
+    <!-- Salesforce Embedded Messaging Integration — native launcher button,
+         user-initiated open. No hideChatButton, no auto-launch: Salesforce's
+         own SDK renders its own branded button + chat window exactly as
+         configured on the TWG_AG_NL_Web deployment in Setup. -->
     <script type='text/javascript'>
         const activeConfig = window.AgentConfigs.active();
         console.log('[Agent] mode:', window.__navMode, '| deployment:', activeConfig.deploymentName);
@@ -301,7 +253,6 @@
                 if (typeof embeddedservice_bootstrap !== 'undefined') {
                     embeddedservice_bootstrap.settings.language = 'en_US';
                     embeddedservice_bootstrap.settings.enableUserInputForConversationWithBot = false;
-                    embeddedservice_bootstrap.settings.hideChatButtonOnLoad = true; // custom #nola-launch replaces it
 
                     console.log('[Agent] Calling init with:', {
                         orgId: activeConfig.orgId,
