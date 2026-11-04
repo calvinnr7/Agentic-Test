@@ -27,8 +27,10 @@
   /* The panel Salesforce renders the chat into */
   #nola-panel {
     position: fixed; right: 24px; bottom: 24px; z-index: 2147483001;
-    width: 400px; height: min(680px, calc(100vh - 48px));
-    border-radius: 16px; overflow: hidden; background: #fff;
+    /* Same size as Salesforce's standard v2 chat window (480x742, capped at viewport - 4rem) */
+    width: 480px; height: 742px;
+    max-width: calc(100vw - 4rem); max-height: calc(100dvh - 4rem);
+    border-radius: 20px; overflow: hidden; background: #fff;
     box-shadow: 0 24px 60px rgba(20, 24, 40, .28);
   }
   /* Hide with visibility, not display/removal, so the conversation stays live */
@@ -44,7 +46,7 @@
     #nola-launch { padding: 4px; right: 16px; bottom: 16px; }
     #nola-launch span { display: none; }
     #nola-launch img { width: 52px; height: 52px; }
-    #nola-panel { inset: 0; width: auto; height: auto; border-radius: 0; }
+    #nola-panel { inset: 0; width: auto; height: auto; max-width: none; max-height: none; border-radius: 0; }
     #nola-panel-min { top: auto; bottom: 12px; right: 12px; }
   }
 </style>
