@@ -1,7 +1,8 @@
 /*!
  * nola-launcher.js - Nola chat launcher for Salesforce Enhanced Chat v2 (inline mode)
  *
- * Replaces Salesforce's default chat button with the Nola button and renders the
+ * Replaces Salesforce's default chat button with the Nola button (desktop: Nola's face +
+ * "Help"; mobile: a speech-bubble button, no face until the chat opens) and renders the
  * chat inside our own panel. Documented settings and APIs only (displayMode,
  * targetElement, disableInlineAutoLaunch, hideChatButtonOnLoad, utilAPI.launchChat).
  * No CSS on Salesforce's own elements.
@@ -10,7 +11,7 @@
  *   1. Load this file BEFORE Salesforce's chat snippet:
  *        <script src=".../resource/TWG_AG_NL_Launcher"
  *                data-avatar=".../resource/TWG_AG_NL_Avatar_512"
- *                data-label="Chat with Nola"></script>
+ *                data-label="Help"></script>
  *   2. In the snippet's initEmbeddedMessaging(), before embeddedservice_bootstrap.init(...):
  *        window.NolaLauncher && NolaLauncher.applySettings();
  *
@@ -18,8 +19,9 @@
  * Salesforce's standard chat button (nothing breaks) and a console warning explains why.
  *
  * Optional data-* attributes on this file's <script> tag:
- *   data-avatar    image URL for Nola's face
- *   data-label     button text (default "Chat with Nola")
+ *   data-avatar    image URL for Nola's face (desktop button only)
+ *   data-label     button text (default "Help")
+ *   data-aria-label  accessible name (default: label + ", chat with Nola")
  *   data-position  "bottom,right" offsets (default "24px,24px")
  *
  * No org ids or secrets in this file; they stay in the site's Salesforce snippet.
@@ -28,7 +30,7 @@
   'use strict';
   if (window.NolaLauncher) return; // load once per page
 
-  var VERSION = '1.0.0';
+  var VERSION = '1.1.0';
   var script = document.currentScript;
   function attr(name, fallback) {
     var v = script && script.getAttribute(name);
@@ -36,9 +38,10 @@
   }
   var cfg = {
     avatar: attr('data-avatar', ''),
-    label: attr('data-label', 'Chat with Nola'),
+    label: attr('data-label', 'Help'),
     position: attr('data-position', '24px,24px').split(',')
   };
+  cfg.aria = attr('data-aria-label', cfg.label + ', chat with Nola');
   var bottom = (cfg.position[0] || '24px').trim();
   var right = (cfg.position[1] || cfg.position[0] || '24px').trim();
 
@@ -51,6 +54,8 @@
     '#nola-launch:hover{background:#A61F25}',
     '#nola-launch:focus-visible{outline:3px solid #243C94;outline-offset:3px}',
     '#nola-launch img{width:44px;height:44px;border-radius:50%;border:2px solid #FFD400;object-fit:cover;display:block}',
+    // speech-bubble icon: mobile only
+    '#nola-launch .nola-launch-bubble{display:none}',
     // The panel Salesforce renders the chat into: same size as its standard v2 window
     '#nola-panel{position:fixed;right:var(--nola-right);bottom:var(--nola-bottom);z-index:2147483001;',
     'width:480px;height:742px;max-width:calc(100vw - 4rem);max-height:calc(100dvh - 4rem);',
@@ -63,13 +68,26 @@
     '"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.2);cursor:pointer}',
     '#nola-panel-min:focus-visible{outline:3px solid #243C94;outline-offset:2px}',
     '@media (max-width:640px){',
-    '#nola-launch{padding:4px;right:16px;bottom:16px}',
-    '#nola-launch .nola-launch-label{display:none}',
-    '#nola-launch img{width:52px;height:52px}',
+    // Mobile: round speech-bubble button, no face (Nola appears once the chat is open)
+    '#nola-launch{width:60px;height:60px;padding:0;gap:0;justify-content:center;border:0;',
+    'background:linear-gradient(145deg,#F2303A 0%,#E20512 55%,#B8040F 100%);',
+    'box-shadow:0 8px 20px rgba(226,5,18,.38),0 2px 6px rgba(0,0,0,.22);right:16px;bottom:16px;',
+    '-webkit-tap-highlight-color:transparent;transition:transform .12s ease,box-shadow .12s ease}',
+    '#nola-launch:hover{background:linear-gradient(145deg,#F2303A 0%,#E20512 55%,#B8040F 100%)}',
+    '#nola-launch:active{transform:scale(.94);box-shadow:0 4px 12px rgba(226,5,18,.35),0 1px 4px rgba(0,0,0,.2)}',
+    '#nola-launch .nola-launch-label,#nola-launch img{display:none}',
+    '#nola-launch .nola-launch-bubble{display:block;width:34px;height:34px}',
     '#nola-panel{inset:0;width:auto;height:auto;max-width:none;max-height:none;border-radius:0}',
     '#nola-panel-min{top:auto;bottom:12px;right:12px}}',
     '@media (prefers-reduced-motion:reduce){#nola-launch,#nola-panel{transition:none!important;animation:none!important}}'
   ].join('');
+
+  // Mobile icon: white speech bubble with three dots, plus a small yellow sparkle (AI cue)
+  var BUBBLE = '<svg class="nola-launch-bubble" viewBox="0 0 34 34" aria-hidden="true" focusable="false">' +
+    '<path fill="#fff" d="M6 8h16a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4H14l-5.5 4.5V25H6a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4z"/>' +
+    '<circle cx="8.5" cy="16.5" r="1.7" fill="#E20512"/><circle cx="14" cy="16.5" r="1.7" fill="#E20512"/>' +
+    '<circle cx="19.5" cy="16.5" r="1.7" fill="#E20512"/>' +
+    '<path fill="#FFDD02" d="M27 1.5l1.3 3.7L32 6.5l-3.7 1.3L27 11.5l-1.3-3.7L22 6.5l3.7-1.3z"/></svg>';
 
   var btn = null, panel = null, container = null;
   var applied = false, ended = false;
@@ -88,7 +106,7 @@
     btn.id = 'nola-launch';
     btn.type = 'button';
     btn.hidden = true;
-    btn.setAttribute('aria-label', cfg.label);
+    btn.setAttribute('aria-label', cfg.aria);
     if (cfg.avatar) {
       var img = document.createElement('img');
       img.src = cfg.avatar;
@@ -101,12 +119,13 @@
     text.className = 'nola-launch-label';
     text.textContent = cfg.label;
     btn.appendChild(text);
+    btn.insertAdjacentHTML('beforeend', BUBBLE);
 
     panel = document.createElement('div');
     panel.id = 'nola-panel';
     panel.className = 'nola-hidden';
     panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-label', cfg.label);
+    panel.setAttribute('aria-label', 'Chat with Nola');
     var min = document.createElement('button');
     min.id = 'nola-panel-min';
     min.type = 'button';

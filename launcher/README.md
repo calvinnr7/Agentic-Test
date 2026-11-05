@@ -2,7 +2,7 @@
 
 `nola-launcher.js` replaces Salesforce's default chat button on the website with the Nola button, and shows the chat in a panel at the bottom right.
 
-- Desktop: Nola's face + "Chat with Nola". Mobile (640px or less): Nola's face only, and the chat opens full screen.
+- Desktop: Nola's face + "Help". Mobile (640px or less): a round speech-bubble button (no face until the chat opens), and the chat opens full screen.
 - Uses Salesforce Enhanced Chat v2 **inline mode** and documented APIs only (`displayMode`, `targetElement`, `disableInlineAutoLaunch`, `hideChatButtonOnLoad`, `utilAPI.launchChat()`). No CSS on Salesforce's own elements.
 - No org IDs or secrets in the file. Those stay in the website's Salesforce snippet.
 - The chat window itself (header, branding) is unchanged: it comes from the Embedded Service deployment.
@@ -23,7 +23,7 @@ Two changes to the page that already has the Nola chat snippet:
 ```html
 <script src="https://<ESW site URL>/sfsites/c/resource/TWG_AG_NL_Launcher"
         data-avatar="https://<ESW site URL>/sfsites/c/resource/TWG_AG_NL_Avatar_512"
-        data-label="Chat with Nola"></script>
+        data-label="Help"></script>
 ```
 
 **2. Add one line inside `initEmbeddedMessaging()`, before `embeddedservice_bootstrap.init(...)`:**
@@ -37,7 +37,7 @@ Full example (Salesforce's standard Code Snippet with the one added line):
 ```html
 <script src="https://<ESW site URL>/sfsites/c/resource/TWG_AG_NL_Launcher"
         data-avatar="https://<ESW site URL>/sfsites/c/resource/TWG_AG_NL_Avatar_512"
-        data-label="Chat with Nola"></script>
+        data-label="Help"></script>
 <script type="text/javascript">
   function initEmbeddedMessaging() {
     try {
@@ -66,7 +66,8 @@ If the launcher file fails to load, or the added line is missing, the page keeps
 | Attribute | Default | Meaning |
 |---|---|---|
 | `data-avatar` | none | URL of Nola's face image |
-| `data-label` | `Chat with Nola` | Button text and accessible name |
+| `data-label` | `Help` | Button text |
+| `data-aria-label` | label + ", chat with Nola" | Accessible name (screen readers; the only name on mobile, where the text is hidden) |
 | `data-position` | `24px,24px` | Bottom and right offsets of the button and panel |
 
 ## Environment values
