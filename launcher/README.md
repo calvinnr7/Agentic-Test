@@ -2,7 +2,8 @@
 
 `nola-launcher.js` replaces Salesforce's default chat button on the website with the Nola button, and shows the chat in a panel at the bottom right.
 
-- Desktop: Nola's face + "Help". Mobile (640px or less): a round speech-bubble button (no face until the chat opens), and the chat opens full screen.
+- Desktop: a speech-bubble icon + "Help". Mobile (640px or less): the round speech-bubble button alone, and the chat opens full screen. No picture of Nola is used anywhere (Corporate Affairs decision, Nov 2026); the NL logo shows once, in the chat window header.
+- Every change to this file needs a new Salesforce resource name (`_v3`, `_v4`, ...) because Salesforce serves an old file at an unchanged URL for a long time. An old paste that still has a `data-avatar` attribute is simply ignored.
 - Uses Salesforce Enhanced Chat v2 **inline mode** and documented APIs only (`displayMode`, `targetElement`, `disableInlineAutoLaunch`, `hideChatButtonOnLoad`, `utilAPI.launchChat()`). No CSS on Salesforce's own elements.
 - No org IDs or secrets in the file. Those stay in the website's Salesforce snippet.
 - The chat window itself (header, branding) is unchanged: it comes from the Embedded Service deployment.
@@ -21,8 +22,7 @@ Two changes to the page that already has the Nola chat snippet:
 **1. Load the launcher before Salesforce's snippet** (a plain `<script>`, no `defer` or `async`):
 
 ```html
-<script src="https://<ESW site URL>/sfsites/c/resource/TWG_AG_NL_Launcher"
-        data-avatar="https://<ESW site URL>/sfsites/c/resource/TWG_AG_NL_Avatar_512"
+<script src="https://<ESW site URL>/sfsites/c/resource/TWG_AG_NL_Launcher_v3"
         data-label="Help"></script>
 ```
 
@@ -35,8 +35,7 @@ window.NolaLauncher && NolaLauncher.applySettings();
 Full example (Salesforce's standard Code Snippet with the one added line):
 
 ```html
-<script src="https://<ESW site URL>/sfsites/c/resource/TWG_AG_NL_Launcher"
-        data-avatar="https://<ESW site URL>/sfsites/c/resource/TWG_AG_NL_Avatar_512"
+<script src="https://<ESW site URL>/sfsites/c/resource/TWG_AG_NL_Launcher_v3"
         data-label="Help"></script>
 <script type="text/javascript">
   function initEmbeddedMessaging() {
@@ -65,7 +64,6 @@ If the launcher file fails to load, or the added line is missing, the page keeps
 
 | Attribute | Default | Meaning |
 |---|---|---|
-| `data-avatar` | none | URL of Nola's face image |
 | `data-label` | `Help` | Button text |
 | `data-aria-label` | label + ", chat with Nola" | Accessible name (screen readers; the only name on mobile, where the text is hidden) |
 | `data-position` | `24px,24px` | Bottom and right offsets of the button and panel |
@@ -84,12 +82,12 @@ Static resources load from `<ESW site URL>/sfsites/c/resource/<name>`. The `<ESW
 
 | | |
 |---|---|
-| Name | `TWG_AG_NL_Launcher` |
+| Name | `TWG_AG_NL_Launcher_v3` (v1.2.0). Earlier: `TWG_AG_NL_Launcher` (v1.0.0, has a face button), `_v2` (v1.1.0, face on desktop) - do not use |
 | Content | `nola-launcher.min.js` |
 | Content type | `application/javascript` |
 | Cache control | Public |
 
-Browsers may keep the old file for a while after an update. To force the new one, add a version to the URL on the website, for example `.../TWG_AG_NL_Launcher?v=2`.
+Salesforce keeps serving the old file at an unchanged URL for a long time after an update (seen: 40+ seconds in the org, up to 45 days per the cache header). So an update is deployed as a **new** resource name (`_v4`, ...) and the website changes that one word in its script URL.
 
 ## Behaviour
 
